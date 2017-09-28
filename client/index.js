@@ -1,53 +1,56 @@
-import { combineReducers, createStore, applyMiddleware } from "redux";
+import {applyMiddleware, createStore} from "redux";
+import axios from "axios";
+import {createLogger} from "redux-logger";
+import thunk from "redux-thunk";
+import promise from "redux-promise-middleware";
 
-//Reducers
-const userReducer = (state={}, action) =>{
-      switch (action.type) {
-        case "CHANGE_NAME":
-              state ={...state, name: action.payload};
-          break;
-        case "CHANGE_AGE":
-                state ={...state, age: action.payload};
-          break;
-      }
 
-      return state;
+const initialState= {
+    fetching : false,
+    fetched : false,
+    users : [],
+    error : null
 };
 
-const tweetsReducer = (state=[], action) =>{
-  return state;
-}
+const logger = createLogger({});
 
-//middlewares
-const error = (store) => (next) => (action) =>{
-    try {
-      next(action);
-    } catch (e) {
-        console.log("it's an error!");
+const reducer = (state = initialState, action) => {
+
+    switch (action.type) {
+      case "FETCH_USERS_PENDING":
+          return {
+              ...state,
+              fetching: true
+          };
+        break;
+      case "FETCH_USERS_FULFILLED":
+          return{
+            ...state,
+            fetching: false,
+            fetched: true,
+            users: action.payload
+          };
+        break;
+      case "FETCH_USERS_REJECTED":
+            return {
+              ...state,
+              fetching: false,
+              error : action.payload
+            };
+        break;
     }
+
+    return state;
+
 }
 
-const logger = (store) => (next) => (action) =>{
-    console.log("action fired", action);
-    next(action);
-}
+//Logger must be last
+const middleware = applyMiddleware(promise(), thunk, logger);
+const store = createStore(reducer, middleware);
 
-//Combining reducers
-const reducers = combineReducers({
-  user : userReducer,
-  tweets: tweetsReducer
-});
-// Combining middlewares
-const middleware  = applyMiddleware(logger, error);
-//Putting all together
-const store = createStore(reducers, middleware);
 
-//when store changes it fires this function
-store.subscribe(() => {
-  console.log("store changed", store.getState());
-});
-
-//Actions that execute
-store.dispatch({type: "CHANGE_NAME", payload: "Milos"});
-store.dispatch({type: "CHANGE_AGE", payload: 20});
-store.dispatch({type: "CHANGE_AGE", payload: 21});
+//Using promise
+store.dispatch({
+  type : "FETCH_USERS",
+  payload : axios.get("http://rest.learncode.academy/api/wstern/users")
+})
